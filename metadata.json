@@ -1,0 +1,7 @@
+{
+  "name": "ImobiManager AI - Gestão de Aluguéis",
+  "description": "Sistema completo para gestão de imobiliária focado em quartos e casas compartilhadas, com assistente jurídico de IA e gerador de contratos sem erros.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
