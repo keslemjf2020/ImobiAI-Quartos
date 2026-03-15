@@ -1,0 +1,466 @@
+Manual de Construção Total do Programa
+1. Visão geral
+Este projeto evoluiu de uma base simples em React com Vite para um sistema de gestão operacional de quartos, contratos e república, com foco em:
+
+cadastro e gestão de contratos
+controle financeiro e pagamentos
+régua de cobrança automatizada
+autenticação local com perfis de acesso
+assistente com IA via Gemini
+OCR de documentos para autopreenchimento
+pipeline interno de entrada de moradoras
+backup local e em nuvem por webhook
+temas visuais configuráveis
+auditoria por logs de uso
+O sistema roda inteiramente no navegador e usa persistência local. Hoje ele funciona como uma aplicação front-end rica, sem backend próprio obrigatório, embora algumas integrações mais fortes dependam de endpoints externos.
+
+2. Stack usada
+Front-end
+React 19
+TypeScript 5
+Vite 6
+React DOM 19
+IA
+SDK @google/genai
+modelos Gemini configuráveis via tela de Configurações
+Persistência local
+localStorage para dados principais do sistema
+IndexedDB para guardar handle da pasta de backup local
+File System Access API para escrita automática de backups em pasta escolhida pelo usuário
+Recursos nativos do navegador usados
+fetch para webhooks e integrações externas
+Blob e URL.createObjectURL para exportações e downloads
+FileReader para importação de JSON
+window.setInterval para relógio e automações recorrentes
+showDirectoryPicker quando disponível no navegador
+3. Estrutura do projeto
+Arquivos raiz
+App.tsx: orquestra estado global, login, controle de abas, tema, automações e renderização principal
+index.tsx: bootstrap da aplicação React
+index.html: documento base e carregamento de fontes
+types.ts: contratos de tipos do domínio inteiro
+package.json: dependências e scripts
+vite.config.ts: configuração do Vite
+metadata.json: metadados do app
+Componentes
+components/Layout.tsx: shell principal, sidebar, relógio, atalho para WhatsApp e logout
+components/Dashboard.tsx: visão gerencial com alertas, vagas e pipeline
+components/ContractsManager.tsx: listagem de contratos, edição, esteira operacional
+components/ContractForm.tsx: formulário de contrato com etapas, IA, OCR e templates
+components/PaymentControl.tsx: pagamentos e monitoramento da régua de cobrança
+components/FinancialControl.tsx: fluxo financeiro geral
+components/MaintenanceControl.tsx: ordens de manutenção
+components/InspectionReport.tsx: vistorias
+components/AIChat.tsx: assistente operacional com IA
+components/SettingsPanel.tsx: centro administrativo de configuração do sistema
+Serviços
+services/dataService.ts: núcleo de persistência, autenticação, logs, templates, notificações e configurações
+services/geminiService.ts: integração com Gemini, chat, validações e OCR
+services/themeService.ts: catálogo de temas e tokens visuais
+services/backupService.ts: backup local, download e envio para nuvem via webhook
+4. Arquitetura funcional
+O projeto segue uma arquitetura simples e pragmática:
+
+App.tsx carrega todos os dados persistidos.
+Os componentes usam o estado atual e chamam serviços para salvar alterações.
+dataService.ts centraliza leitura, merge, persistência e regras de negócio locais.
+geminiService.ts lê a configuração de IA salva em settings e executa chamadas ao Gemini.
+backupService.ts exporta o estado completo do app e dispara backup local ou webhook.
+themeService.ts fornece paleta, fontes, fundos, ícones e tokens visuais por tema.
+Não existe um backend proprietário dentro deste repositório. Por isso, recursos como OAuth real, envio de mensagens e cloud backup dependem de URLs externas configuradas pelo administrador.
+
+5. Modelo de dados principal
+O sistema gira em torno de AppData, definido em types.ts. Essa estrutura reúne:
+
+contratos
+pagamentos
+vistorias
+ordens de manutenção
+lançamentos financeiros
+templates de contrato
+usuários
+sessões ativas
+logs de uso
+notificações de cobrança
+configurações globais
+Tipos centrais usados
+Contract
+Payment
+Inspection
+MaintenanceOrder
+FinancialTransaction
+AppSettings
+AppUser
+UsageLogEntry
+BillingNotification
+ContractTemplate
+Configurações globais
+AppSettings concentra:
+
+dados da empresa
+módulos habilitados
+etapas do contrato habilitadas
+parâmetros da IA
+segurança e login
+régua de cobrança
+backup automático
+layout da casa
+tema visual
+6. Persistência e armazenamento
+Chaves e estratégia
+O estado principal é salvo em localStorage pela chave:
+
+imobimanager_data
+A sessão atual usa:
+
+imobimanager_session_user_id
+O backup local usa IndexedDB com:
+
+banco imobiai_backup_db
+store handles
+chave de diretório local_backup_directory
+Como os dados são carregados
+dataService.ts faz merge entre defaults e dados já persistidos. Isso permitiu evoluir o schema do sistema sem perder instalações antigas, adicionando campos novos com fallback seguro.
+
+Vantagens da abordagem atual
+simples para rodar localmente
+sem dependência obrigatória de servidor
+fácil exportar/importar dados
+boa para operação em máquina única
+Limitações da abordagem atual
+dados ficam atrelados ao navegador/perfil em uso
+sem sincronização nativa multiusuário em tempo real
+sem criptografia forte no armazenamento local
+depende de disciplina operacional para backup e migração entre máquinas
+7. Autenticação e controle de acesso
+Perfis existentes
+admin
+operator
+Na implementação atual, o sistema também trata a conta inicial como conta mestre operacional, usada para desbloqueio de configurações sensíveis.
+
+Conta inicial criada por padrão
+usuário: admin
+senha inicial: admin123
+código de recuperação inicial: 000000
+Essa conta é criada em dataService.ts como usuário padrão. Ela é usada para iniciar o sistema em instalações novas.
+
+Fluxos implementados
+login local por usuário e senha
+recuperação de senha por código de recuperação
+controle de sessão atual
+listagem de usuários ativos
+ativação e desativação de usuários
+restrição de áreas administrativas
+Restrições aplicadas
+apenas administradores acessam Configurações
+apenas administradores acessam Assistente IA
+alterações sensíveis podem exigir desbloqueio adicional pelo administrador mestre
+8. Módulos funcionais do sistema
+Dashboard
+Mostra indicadores de operação, vagas, alertas de assinatura pendente, andamento da esteira e visão resumida do negócio.
+
+Contratos
+Permite criar, editar e acompanhar contratos. O formulário foi expandido para respeitar etapas configuráveis, templates, OCR e regras operacionais da república.
+
+Pagamentos
+Centraliza vencimentos, status e acompanhamento da régua de cobrança.
+
+Financeiro
+Gerencia entradas e saídas operacionais, categorias e rastreabilidade financeira.
+
+Manutenção
+Registra ordens de manutenção com prioridade, categoria, custos e resolução.
+
+Vistorias
+Mantém registros de vistoria de entrada, saída e rotina.
+
+Assistente IA
+Disponibiliza chat operacional com contexto do sistema, sujeito às permissões do usuário.
+
+Configurações
+É o painel administrativo central e concentra a maior parte da customização do sistema.
+
+9. Configurações avançadas implementadas
+O painel de configurações foi transformado em um centro de controle administrativo. Hoje ele permite:
+
+configurar dados da empresa
+controlar visibilidade dos módulos
+controlar etapas do formulário de contrato
+configurar chave e comportamento da IA
+ativar ou não login obrigatório
+configurar URLs de OAuth externo
+criar e gerenciar usuários
+exportar logs
+importar e exportar backup JSON
+configurar backup automático local/nuvem
+configurar régua de cobrança
+definir tema visual
+definir layout físico da casa e quantidade real de vagas
+acessar manual interno
+10. Integração com IA
+Serviço usado
+O projeto usa Gemini por meio do pacote @google/genai.
+
+Configurações expostas ao administrador
+chave de API
+modelo
+temperatura
+instrução de sistema
+ativação da validação de formulário por IA
+Recursos já implementados com IA
+chat com assistente
+validação de dados no formulário
+OCR multimodal de documentos
+extração estruturada de dados para autopreenchimento
+Como a chave é tratada
+A chave de API passou a ser salva nas configurações persistidas, em vez de depender exclusivamente de variável de ambiente. Isso resolveu o problema operacional da chave desaparecer após fechar e abrir a aplicação, desde que as configurações sejam salvas ou o autosave esteja ligado.
+
+Risco técnico atual
+Como a aplicação é front-end puro, a chave fica do lado cliente. Isso é prático para operação local, mas não é o desenho mais seguro para produção pública. O desenho ideal de longo prazo é mover chamadas sensíveis para backend próprio.
+
+11. OCR e automação documental
+Foi adicionada capacidade de enviar documentos para análise por IA e extrair dados úteis para o sistema preencher campos automaticamente.
+
+Casos pensados para esse fluxo:
+
+identificação de cliente
+identificação de moradora da república
+leitura de documentos pessoais
+ajuda no preenchimento do contrato
+O fluxo foi encaixado em ContractForm.tsx e usa geminiService.ts para interpretar os arquivos e devolver estrutura utilizável pela tela.
+
+12. Templates de contrato
+O sistema passou a aceitar modelos reutilizáveis de contrato. Eles servem para acelerar a criação de contratos com padrões recorrentes.
+
+O que um template pode trazer
+tipo de vaga
+descrição de quarto
+áreas compartilhadas
+meses padrão
+dia padrão de pagamento
+caução padrão
+Benefício
+Isso reduz retrabalho e aproxima o sistema da operação real da república.
+
+13. Régua de cobrança
+Foi implementado um motor de notificações automáticas baseado em regras por deslocamento de dias em relação ao vencimento.
+
+Canais previstos
+e-mail
+SMS
+WhatsApp
+Estados de notificação modelados
+queued
+sent
+delivered
+seen
+failed
+Estrutura da automação
+Cada regra possui:
+
+nome
+offset de dias
+canais de envio
+template de mensagem
+flag de ativação
+Execução
+App.tsx dispara processBillingAutomation() na carga da aplicação e depois a cada minuto.
+
+Integração externa
+O envio real depende de webhooks configurados pelo administrador em Configurações. Isso foi feito para evitar acoplamento com um único provedor.
+
+14. Backup e recuperação operacional
+Formas de backup existentes
+exportação manual em JSON
+download direto pelo navegador
+gravação automática em pasta local escolhida
+envio para nuvem via webhook
+Serviço responsável
+services/backupService.ts
+
+Lógica operacional
+escolhe pasta com showDirectoryPicker
+guarda handle em IndexedDB
+grava arquivo JSON com nome datado
+opcionalmente envia o mesmo conteúdo para uma URL externa
+registra logs de execução
+Execução automática
+runDailyBackupIfDue() roda na inicialização e depois no ciclo recorrente, respeitando hora diária configurada e o último backup concluído.
+
+15. Logs, auditoria e rastreabilidade
+Foram adicionados logs de uso para registrar ações administrativas e operacionais relevantes.
+
+Exemplos de eventos registrados
+salvar configurações
+ativar ou desativar usuários
+escolher pasta de backup
+escrever backup local
+enviar backup para nuvem
+ações sensíveis administrativas
+Objetivo
+Dar visibilidade mínima de auditoria mesmo em uma aplicação puramente local.
+
+16. Temas visuais
+Foi criado um serviço dedicado de temas em services/themeService.ts.
+
+Temas implementados
+mapa-interativo
+social-colaborativo
+tabela-comparativa
+minimalista-fotos
+O que cada tema altera
+fonte principal
+fundo global
+fundo do sidebar
+cores de cartões
+bordas
+cor de destaque
+botão principal
+fundo da tela de login
+ícones dos menus
+Tema padrão
+mapa-interativo
+O objetivo foi evitar apenas troca superficial de cor. Cada tema tem identidade visual própria e interfere em layout, percepção e navegação.
+
+17. Layout da casa e cálculo de vagas
+O sistema passou a modelar a configuração física da casa.
+
+Estrutura atual assumida
+1 quarto triplo
+2 quartos duplos
+1 desses duplos com banheiro
+1 quarto individual pequeno
+Total operacional adotado
+8 vagas
+O dashboard foi ajustado para derivar o total real da composição dos quartos, em vez de confiar apenas em um número antigo salvo em totalRooms.
+
+18. Esteira operacional de entrada
+Foi iniciada uma esteira interna para acompanhar entrada e preparação de moradoras/candidatas.
+
+Finalidade
+organizar pendências antes da ocupação
+acompanhar assinatura
+acompanhar preparo do quarto e áreas comuns
+reduzir falhas operacionais
+Elementos adicionados
+pipeline no contrato
+checklist de preparação
+alertas de contrato pendente por mais de 48 horas
+indicadores no dashboard
+19. Checklist de preparação e inventário
+O sistema começou a migrar de um checklist simples para um checklist operacional mais próximo da realidade da casa.
+
+Itens modelados na tipagem
+Quarto
+mesa de estudos individual
+guarda-roupa individual
+cama por vaga
+colchão por vaga
+Cozinha e lavanderia
+sanduicheira
+geladeira
+fogão
+micro-ondas
+liquidificador
+máquina de lavar
+mesa e cadeiras
+pia e armários
+utensílios completos
+Banheiro
+chuveiro elétrico
+box de vidro
+vaso e pia
+armário de banheiro
+Geral
+lâmpadas e tomadas funcionando
+Estado atual dessa parte
+A modelagem e defaults foram ampliados. A UI da esteira já começou a ser adaptada, mas essa frente ainda é uma das partes mais propensas a novos ajustes finos.
+
+20. Login social e OAuth
+O painel já permite configurar URLs de provedores como:
+
+Google
+Microsoft
+GitHub
+O que existe hoje
+preparação de configuração
+botões de redirecionamento
+controle administrativo para habilitar ou não o recurso
+O que ainda depende de infraestrutura externa
+fluxo OAuth completo com callback validado
+troca segura de tokens
+criação automática de sessão por provedor
+Sem backend próprio ou provedor já integrado, o projeto hoje deixa essa etapa preparada, mas não finalizada ponta a ponta.
+
+21. Fluxo de inicialização da aplicação
+Na prática, ao abrir o sistema:
+
+App.tsx carrega dados via loadAllData().
+O tema salvo é aplicado ao body e ao documentElement.
+A sessão atual é verificada.
+Se login for obrigatório, a interface de autenticação é priorizada.
+O processamento da régua de cobrança é executado.
+O verificador de backup diário também é executado.
+Um intervalo de 1 minuto mantém automações recorrentes.
+22. Fluxo de permissões
+As permissões não estão centralizadas em um ACL complexo. A lógica atual é direta e prática:
+
+o papel do usuário define se é admin ou operator
+admins veem e usam Configurações e IA
+operadores não entram nessas áreas
+configurações sensíveis podem ter camada extra de desbloqueio
+Esse desenho reduz complexidade, mas ainda pode evoluir para permissões por módulo, por ação ou por usuário.
+
+23. Execução local
+Pré-requisitos
+Node.js
+npm
+Comandos principais
+npm install
+npm run dev
+npm run build
+npm run preview
+24. O que foi mantido da base original e o que mudou
+Base original
+React + Vite
+estrutura inicial de telas
+uso de Gemini por variável de ambiente
+Principais ampliações feitas
+IA configurável em runtime
+autenticação local
+auditoria
+backup automático
+régua de cobrança
+temas funcionais
+esteira operacional
+templates de contrato
+OCR documental
+controle administrativo muito mais amplo
+25. Limitações atuais conhecidas
+sem backend próprio para segredos e integrações críticas
+armazenamento principal local ao navegador
+login social ainda depende de infraestrutura externa real
+rastreio de entrega/leitura depende do provedor externo informar os eventos
+parte da UI da esteira e do checklist ainda pode exigir refinamento visual e operacional
+26. Melhor caminho para próxima evolução
+Se este sistema for crescer para operação mais robusta, a evolução natural é:
+
+criar backend próprio para autenticação, IA e integrações
+mover dados de localStorage para banco persistente
+criptografar credenciais e segredos fora do cliente
+finalizar OAuth real com callbacks seguros
+versionar backups e sincronização multiusuário
+concluir a UI completa do checklist operacional
+ampliar RBAC para permissões por ação
+27. Resumo técnico final
+Este programa foi construído como uma aplicação web React + TypeScript com persistência local e serviços especializados em dados, IA, tema e backup. Ele já cobre uma operação imobiliária/república bastante ampla sem exigir backend próprio, mas várias integrações foram desenhadas para poderem ser ligadas a webhooks e serviços externos quando necessário.
+
+O núcleo real do sistema hoje está nestes arquivos:
+App.tsx
+types.ts
+components/Dashboard.tsx
+components/PaymentControl.tsx
+services/dataService.ts
+services/geminiService.ts
+services/backupService.ts
+services/themeService.ts Se alguém assumir a continuidade do projeto, estes são os primeiros pontos que devem ser lidos para entender a aplicação por completo.
